@@ -6,6 +6,7 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.events.ClientTick;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -17,6 +18,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.party.PartyPlugin;
+import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageUtil;
@@ -37,6 +39,9 @@ public class PartyHotkeysPlugin extends Plugin
 {
 	@Inject
 	private Client client;
+
+	@Inject
+	private ClientUI clientUI;
 
 	@Inject
 	private ClientThread clientThread;
@@ -63,7 +68,9 @@ public class PartyHotkeysPlugin extends Plugin
 
 	Instant lastLeave = null;
 
-	private final HotkeyListener previousKeyListener = new HotkeyListener(() -> config.rejoinPreviousKey())
+	boolean lastFocusStatus = false;
+
+	private final CustomHotkeyListener previousKeyListener = new CustomHotkeyListener(() -> config.rejoinPreviousKey())
 	{
 		@Override
 		public void hotkeyPressed()
@@ -72,7 +79,7 @@ public class PartyHotkeysPlugin extends Plugin
 		}
 	};
 
-	private final HotkeyListener leavePartyKeyListener = new HotkeyListener(() -> config.leavePartyKey())
+	private final CustomHotkeyListener leavePartyKeyListener = new CustomHotkeyListener(() -> config.leavePartyKey())
 	{
 		@Override
 		public void hotkeyPressed()
@@ -81,7 +88,7 @@ public class PartyHotkeysPlugin extends Plugin
 		}
 	};
 
-	private final HotkeyListener joinParty1KeyListener = new HotkeyListener(() -> config.joinParty1Key())
+	private final CustomHotkeyListener joinParty1KeyListener = new CustomHotkeyListener(() -> config.joinParty1Key())
 	{
 		@Override
 		public void hotkeyPressed()
@@ -90,7 +97,7 @@ public class PartyHotkeysPlugin extends Plugin
 		}
 	};
 
-	private final HotkeyListener joinParty2KeyListener = new HotkeyListener(() -> config.joinParty2Key())
+	private final CustomHotkeyListener joinParty2KeyListener = new CustomHotkeyListener(() -> config.joinParty2Key())
 	{
 		@Override
 		public void hotkeyPressed()
@@ -99,7 +106,7 @@ public class PartyHotkeysPlugin extends Plugin
 		}
 	};
 
-	private final HotkeyListener joinParty3KeyListener = new HotkeyListener(() -> config.joinParty3Key())
+	private final CustomHotkeyListener joinParty3KeyListener = new CustomHotkeyListener(() -> config.joinParty3Key())
 	{
 		@Override
 		public void hotkeyPressed()
@@ -134,6 +141,32 @@ public class PartyHotkeysPlugin extends Plugin
 		keyManager.unregisterKeyListener(joinParty1KeyListener);
 		keyManager.unregisterKeyListener(joinParty2KeyListener);
 		keyManager.unregisterKeyListener(joinParty3KeyListener);
+	}
+
+	@Subscribe
+	public void onClientTick(ClientTick event)
+	{
+		//Fix chat being locked & hotkeys from being unusable if user loses focus
+		if(lastFocusStatus != clientUI.isFocused()){
+			if(!clientUI.isFocused()){
+				if(previousKeyListener.isPressed()){
+					previousKeyListener.ReleaseHotkey();
+				}
+				if(leavePartyKeyListener.isPressed()){
+					leavePartyKeyListener.ReleaseHotkey();
+				}
+				if(joinParty1KeyListener.isPressed()){
+					joinParty1KeyListener.ReleaseHotkey();
+				}
+				if(joinParty2KeyListener.isPressed()){
+					joinParty2KeyListener.ReleaseHotkey();
+				}
+				if(joinParty3KeyListener.isPressed()){
+					joinParty3KeyListener.ReleaseHotkey();
+				}
+			}
+		}
+		lastFocusStatus = clientUI.isFocused();
 	}
 
 	private void CreateInfobox()
